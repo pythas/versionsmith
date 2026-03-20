@@ -4,7 +4,7 @@
   "description": "A simple, conflict-free changelog management tool following Keep a Changelog",
   "type": "module",
   "bin": {
-    "versionsmith": "./dist/index.js"
+    "versionsmith": "dist/index.js"
   },
   "files": [
     "dist"
