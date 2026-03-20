@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build output
+packages/*/dist/
+
+# npm pack output
+*.tgz
+
+# Environment
+.env
+.env.*
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test artifacts
+/tmp/
