@@ -30,4 +30,4 @@ jobs:
         run: npm test --workspace=packages/cli
 
       - name: Publish to npm
-        run: npm publish --workspace=packages/cli --access public --provenance
+        run: npm publish --workspace=packages/cli --access public
