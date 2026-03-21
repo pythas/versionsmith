@@ -1,11 +1,17 @@
-import { writeFileSync } from "node:fs";
-import { checkbox, input, confirm } from "@inquirer/prompts";
+import { writeFileSync, readFileSync, readdirSync, existsSync } from "node:fs";
+import { join } from "node:path";
+import { checkbox, input, confirm, select } from "@inquirer/prompts";
 import {
-  readConfig,
   isInitialized,
   getVersionsmithDir,
 } from "../utils/config.ts";
-import { CHANGE_TYPES, ChangeType, renderEntries } from "../utils/changelog.ts";
+import {
+  CHANGE_TYPES,
+  ChangeType,
+  renderEntries,
+  parseChangeset,
+  mergeChangesets,
+} from "../utils/changelog.ts";
 import { generateName, changesetPath } from "../utils/names.ts";
 
 export async function add(cwd: string = process.cwd()): Promise<void> {
@@ -18,7 +24,42 @@ export async function add(cwd: string = process.cwd()): Promise<void> {
 
   const dir = getVersionsmithDir(cwd);
 
-  console.log("\nCreate a new changelog entry\n");
+  // Check for existing changeset files to allow appending
+  const existingFiles = existsSync(dir)
+    ? readdirSync(dir).filter((f) => f.endsWith(".md") && f !== ".gitkeep")
+    : [];
+
+  let targetFile: string | null = null;
+  let existingEntries: Partial<Record<ChangeType, string[]>> = {};
+
+  if (existingFiles.length === 1) {
+    // Auto-append to the single existing file
+    targetFile = existingFiles[0];
+    const content = readFileSync(join(dir, targetFile), "utf-8");
+    existingEntries = parseChangeset(content).entries;
+    console.log(`\nAppending to existing entry: .versionsmith/${targetFile}\n`);
+  } else if (existingFiles.length > 1) {
+    // Let the user pick which file to append to, or create a new one
+    const CREATE_NEW = "__create_new__";
+    const choice = await select<string>({
+      message: "Existing changelog entries found. Append to one or create new?",
+      choices: [
+        ...existingFiles.map((f) => ({ name: f, value: f })),
+        { name: "Create new entry", value: CREATE_NEW },
+      ],
+    });
+
+    if (choice !== CREATE_NEW) {
+      targetFile = choice;
+      const content = readFileSync(join(dir, targetFile), "utf-8");
+      existingEntries = parseChangeset(content).entries;
+      console.log(`\nAppending to: .versionsmith/${targetFile}\n`);
+    } else {
+      console.log("\nCreate a new changelog entry\n");
+    }
+  } else {
+    console.log("\nCreate a new changelog entry\n");
+  }
 
   // Step 1: pick change types
   const selectedTypes = await checkbox<ChangeType>({
@@ -57,9 +98,14 @@ export async function add(cwd: string = process.cwd()): Promise<void> {
     entries[type] = items;
   }
 
-  // Step 3: preview
+  // Step 3: merge with existing entries if appending
+  const finalEntries = targetFile
+    ? mergeChangesets([{ entries: existingEntries }, { entries }])
+    : entries;
+
+  // Step 4: preview
   console.log("\n--- Preview ---");
-  console.log(renderEntries(entries));
+  console.log(renderEntries(finalEntries));
   console.log("---------------\n");
 
   const confirmed = await confirm({
@@ -72,13 +118,20 @@ export async function add(cwd: string = process.cwd()): Promise<void> {
     return;
   }
 
-  // Step 4: write file
-  const name = generateName(dir);
-  const filePath = changesetPath(dir, name);
-  const content = renderEntries(entries);
-  writeFileSync(filePath, content, "utf-8");
+  // Step 5: write file
+  const content = renderEntries(finalEntries);
 
-  console.log(`\nSaved: .versionsmith/${name}.md`);
+  if (targetFile) {
+    const filePath = join(dir, targetFile);
+    writeFileSync(filePath, content, "utf-8");
+    console.log(`\nUpdated: .versionsmith/${targetFile}`);
+  } else {
+    const name = generateName(dir);
+    const filePath = changesetPath(dir, name);
+    writeFileSync(filePath, content, "utf-8");
+    console.log(`\nSaved: .versionsmith/${name}.md`);
+  }
+
   console.log(
     "\nCommit this file alongside your changes. When ready to release, run:"
   );
