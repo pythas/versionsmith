@@ -5,15 +5,71 @@ import {
   isInitialized,
   getVersionsmithDir,
 } from "../utils/config.ts";
+import type { ChangeType } from "../utils/changelog.ts";
 import {
   CHANGE_TYPES,
-  ChangeType,
   renderEntries,
   parseChangeset,
   mergeChangesets,
 } from "../utils/changelog.ts";
 import { generateName, changesetPath } from "../utils/names.ts";
 
+/**
+ * Non-interactive add: write entries directly from CLI args.
+ * Appends to an existing changeset file when exactly one exists.
+ */
+export async function addInline(
+  entries: Partial<Record<ChangeType, string[]>>,
+  cwd: string = process.cwd()
+): Promise<void> {
+  if (!isInitialized(cwd)) {
+    console.error(
+      "versionsmith is not initialized. Run `npx @versionsmith/cli init` first."
+    );
+    process.exit(1);
+  }
+
+  const dir = getVersionsmithDir(cwd);
+
+  const existingFiles = existsSync(dir)
+    ? readdirSync(dir).filter((f) => f.endsWith(".md") && f !== ".gitkeep")
+    : [];
+
+  let targetFile: string | null = null;
+  let finalEntries = entries;
+
+  if (existingFiles.length === 1) {
+    targetFile = existingFiles[0];
+    const existing = parseChangeset(readFileSync(join(dir, targetFile), "utf-8")).entries;
+    finalEntries = mergeChangesets([{ entries: existing }, { entries }]);
+  }
+
+  const content = renderEntries(finalEntries);
+
+  console.log("\n--- Preview ---");
+  console.log(content);
+  console.log("---------------\n");
+
+  if (targetFile) {
+    const filePath = join(dir, targetFile);
+    writeFileSync(filePath, content, "utf-8");
+    console.log(`Updated: .versionsmith/${targetFile}`);
+  } else {
+    const name = generateName(dir);
+    const filePath = changesetPath(dir, name);
+    writeFileSync(filePath, content, "utf-8");
+    console.log(`Saved: .versionsmith/${name}.md`);
+  }
+
+  console.log(
+    "\nCommit this file alongside your changes. When ready to release, run:"
+  );
+  console.log("  npx @versionsmith/cli release");
+}
+
+/**
+ * Interactive add: prompt the user for change types and descriptions.
+ */
 export async function add(cwd: string = process.cwd()): Promise<void> {
   if (!isInitialized(cwd)) {
     console.error(

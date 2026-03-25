@@ -43,11 +43,24 @@ Commit `.versionsmith/config.json` and `.versionsmith/.gitkeep` to your reposito
 
 ### Create a changelog entry
 
+From the command line (non-interactive):
+
 ```bash
-npx @versionsmith/cli
+npx @versionsmith/cli added "Dark mode support"
+npx @versionsmith/cli fixed "Login redirect bug"
+npx @versionsmith/cli added "Dark mode" fixed "Login bug" changed "Updated API format"
 ```
 
-You will be prompted to select the type of change (Added, Changed, Deprecated, Removed, Fixed, Security) and enter a description. A file like `.versionsmith/brave-delta.md` is written. Commit this file alongside your code changes.
+Change types: `added`, `changed`, `deprecated`, `removed`, `fixed`, `security` (case-insensitive).
+
+Or interactively:
+
+```bash
+npx @versionsmith/cli
+npx @versionsmith/cli new
+```
+
+You will be prompted to select the type of change and enter a description. A file like `.versionsmith/brave-delta.md` is written. Commit this file alongside your code changes.
 
 ### Release
 
@@ -69,12 +82,12 @@ This moves all pending entries (including anything already in `[Unreleased]`) in
 
 ```
 # Developer on a feature branch
-npx @versionsmith/cli
+npx @versionsmith/cli added "Dark mode"
 git add .versionsmith/brave-delta.md
 git commit -m "Add dark mode"
 
 # Another developer on a different branch
-npx @versionsmith/cli
+npx @versionsmith/cli fixed "Login redirect"
 git add .versionsmith/calm-ridge.md
 git commit -m "Fix login redirect"
 
@@ -104,6 +117,8 @@ git tag v1.0.0
 |---------|-------------|
 | `versionsmith init` | Initialize versionsmith in the current directory |
 | `versionsmith` | Create a new changelog entry interactively |
-| `versionsmith add` | Alias for the default command |
+| `versionsmith new` | Alias for the default interactive command |
+| `versionsmith added "desc"` | Create an entry directly from the command line |
+| `versionsmith fixed "A" added "B"` | Create multiple entries at once |
 | `versionsmith release` | Merge entries into `[Unreleased]` in `CHANGELOG.md` |
 | `versionsmith release --version 1.0.0` | Merge entries into a dated versioned release |
