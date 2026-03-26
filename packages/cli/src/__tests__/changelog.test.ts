@@ -120,6 +120,42 @@ All notable changes.
     assert.ok(header.includes("# Changelog"));
     assert.equal(releases.length, 0);
   });
+
+  it("parses versioned release without a date", () => {
+    const content = `# Changelog\n\n## [1.0.0]\n\n### Added\n\n- Feature.\n`;
+    const { releases } = parseChangelog(content);
+    assert.equal(releases.length, 1);
+    assert.equal(releases[0].version, "1.0.0");
+    assert.equal(releases[0].date, undefined);
+    assert.deepEqual(releases[0].entries.Added, ["Feature."]);
+  });
+
+  it("parses mix of releases with and without dates", () => {
+    const content = `# Changelog
+
+## [Unreleased]
+
+## [2.0.0] - 2026-06-15
+
+### Changed
+
+- Something changed.
+
+## [1.0.0]
+
+### Added
+
+- Initial release.
+`;
+    const { releases } = parseChangelog(content);
+    assert.equal(releases.length, 3);
+    assert.equal(releases[0].version, "Unreleased");
+    assert.equal(releases[0].date, undefined);
+    assert.equal(releases[1].version, "2.0.0");
+    assert.equal(releases[1].date, "2026-06-15");
+    assert.equal(releases[2].version, "1.0.0");
+    assert.equal(releases[2].date, undefined);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -149,6 +185,47 @@ describe("renderChangelog", () => {
     ];
     const rendered = renderChangelog(header, releases);
     assert.doesNotMatch(rendered, /\n{3,}/);
+  });
+
+  it("renders versioned release without date (no 'undefined')", () => {
+    const header = "# Changelog";
+    const releases = [
+      { version: "1.0.0", entries: { Added: ["Feature."] } },
+    ];
+    const rendered = renderChangelog(header, releases);
+    assert.ok(rendered.includes("## [1.0.0]"));
+    assert.doesNotMatch(rendered, /undefined/);
+    assert.ok(!rendered.includes("## [1.0.0] -"));
+  });
+
+  it("renders mix of releases with and without dates", () => {
+    const header = "# Changelog";
+    const releases = [
+      { version: "Unreleased", entries: {} },
+      { version: "2.0.0", date: "2026-06-15", entries: { Changed: ["API."] } },
+      { version: "1.0.0", entries: { Added: ["Initial."] } },
+    ];
+    const rendered = renderChangelog(header, releases);
+    assert.ok(rendered.includes("## [Unreleased]"));
+    assert.ok(rendered.includes("## [2.0.0] - 2026-06-15"));
+    assert.ok(rendered.includes("## [1.0.0]"));
+    assert.doesNotMatch(rendered, /undefined/);
+  });
+
+  it("round-trips a changelog with dateless releases", () => {
+    const input = `# Changelog
+
+## [1.0.0]
+
+### Added
+
+- Feature.
+`;
+    const parsed = parseChangelog(input);
+    const rendered = renderChangelog(parsed.header, parsed.releases);
+    assert.ok(rendered.includes("## [1.0.0]"));
+    assert.doesNotMatch(rendered, /undefined/);
+    assert.ok(rendered.includes("- Feature."));
   });
 });
 

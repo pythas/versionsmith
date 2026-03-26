@@ -192,7 +192,9 @@ export function renderChangelog(header: string, releases: Release[]): string {
     const heading =
       release.version === "Unreleased"
         ? "## [Unreleased]"
-        : `## [${release.version}] - ${release.date}`;
+        : release.date
+          ? `## [${release.version}] - ${release.date}`
+          : `## [${release.version}]`;
     parts.push(heading);
     parts.push("");
 
